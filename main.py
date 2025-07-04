@@ -15,7 +15,10 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=[
+        "http://localhost:3000",
+        "https://smart-task-tracker-frontend.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,7 +68,7 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
 def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(models.Task).offset(skip).limit(limit).all()
 
-# Summary endpoint (move this above /tasks/{task_id})
+# Summary endpoint 
 @app.get("/tasks/summary")
 def get_summary(db: Session = Depends(get_db)):
     total = db.query(models.Task).count()
