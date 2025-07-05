@@ -221,6 +221,10 @@ class ProductivityInsights(BaseModel):
     productivity_score: float
     recommendations: List[str]
 
+class TaskEnhancementRequest(BaseModel):
+    title: str
+    description: str = ""
+
 # CRUD Endpoints
 @app.post("/tasks/", response_model=TaskOut)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
@@ -248,9 +252,9 @@ def get_summary(db: Session = Depends(get_db)):
 
 # AI Enhancement endpoint
 @app.post("/ai/enhance-task", response_model=AISuggestions)
-def enhance_task(title: str, description: str = ""):
+def enhance_task(request: TaskEnhancementRequest):
     """Get AI suggestions for task enhancement"""
-    return enhance_task_with_ai(title, description)
+    return enhance_task_with_ai(request.title, request.description)
 
 # Productivity Insights endpoint
 @app.get("/ai/productivity-insights", response_model=ProductivityInsights)
