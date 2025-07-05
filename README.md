@@ -4,7 +4,7 @@ A FastAPI-based backend for the Smart Task Tracker app, providing a RESTful API 
 
 ---
 
-## 🚀 Live API
+## �� Live API
 
 - **Backend API:** [https://smart-task-tracker-backend-production.up.railway.app](https://smart-task-tracker-backend-production.up.railway.app)
 
@@ -44,7 +44,7 @@ python main.py
 
 ---
 
-## 📑 API Endpoints
+## �� API Endpoints
 
 ### Core Task Management
 - `POST /tasks/` – Create a new task
@@ -89,7 +89,7 @@ python main.py
 
 ---
 
-## 🗂️ Project Structure
+## ��️ Project Structure
 
 - `main.py` – FastAPI app, endpoints, and AI integration logic
 - `models.py` – SQLAlchemy models
