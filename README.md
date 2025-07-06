@@ -2,13 +2,9 @@
 
 A FastAPI-based backend for the Smart Task Tracker app, providing a RESTful API for task management with AI-powered features.
 
----
+## 🚀 Live API
 
-## �� Live API
-
-- **Backend API:** [https://smart-task-tracker-backend-production.up.railway.app](https://smart-task-tracker-backend-production.up.railway.app)
-
----
+Backend API: https://smart-task-tracker-backend-production.up.railway.app
 
 ## 🛠️ Setup Steps
 
@@ -29,8 +25,6 @@ python main.py
 
 > The API will run at [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
----
-
 ## ✨ Features
 
 - Create, read, update, and delete tasks
@@ -42,9 +36,7 @@ python main.py
 - CORS enabled for frontend integration
 - FastAPI auto-generated docs at `/docs`
 
----
-
-## �� API Endpoints
+## 🔌 API Endpoints
 
 ### Core Task Management
 - `POST /tasks/` – Create a new task
@@ -57,8 +49,6 @@ python main.py
 ### AI-Powered Features
 - `POST /ai/enhance-task` – Get AI suggestions for task enhancement
 - `GET /ai/productivity-insights` – Get productivity analytics and recommendations
-
----
 
 ## 🤖 AI Integration Features
 
@@ -81,30 +71,22 @@ python main.py
 - **Rule-based Suggestions:** Uses keyword analysis for smart defaults
 - **Reliable Performance:** Ensures consistent functionality
 
----
-
 ## 📂 Repository
 
 - [Backend GitHub Repo](https://github.com/kumarjaishankar/smart-task-tracker-backend)
 
----
-
-## ��️ Project Structure
+## 🏗️ Project Structure
 
 - `main.py` – FastAPI app, endpoints, and AI integration logic
 - `models.py` – SQLAlchemy models
 - `database.py` – Database connection and session
 - `requirements.txt` – Python dependencies
 
----
-
 ## 📝 Documentation
 
 - Interactive API docs: `/docs` (when running locally or on Railway)
 - Database: SQLite (default, can be swapped for other DBs with SQLAlchemy)
 - AI Features: Uses Hugging Face Inference API for task enhancement
-
----
 
 ## 🌐 Deployment
 
