@@ -45,14 +45,32 @@ def enhance_task_with_ai(title: str, description: str = "") -> Dict[str, Any]:
         API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY', 'hf_demo')}"}
         
-        # Create a prompt for task enhancement
-        prompt = f"Task: {title}\nDescription: {description}\n\nPlease provide:\n1. Enhanced title\n2. Suggested category\n3. Priority level (Low/Medium/High)\n4. Estimated completion time (in hours)\n5. Task breakdown (if complex)"
+        # Create a better prompt for task enhancement
+        prompt = f"""Task Enhancement Request:
+Original Task: {title}
+Description: {description}
+
+Please enhance this task by:
+1. Making the title more specific and actionable
+2. Suggesting the best category
+3. Determining appropriate priority level
+4. Estimating completion time
+
+Example enhancement:
+Original: "meeting"
+Enhanced: "Schedule team meeting for project review"
+Category: Work
+Priority: Medium
+Time: 1 hour
+
+Please provide your enhancement:"""
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "max_length": 200,
-                "temperature": 0.7
+                "max_length": 300,
+                "temperature": 0.8,
+                "do_sample": True
             }
         }
         
@@ -62,35 +80,46 @@ def enhance_task_with_ai(title: str, description: str = "") -> Dict[str, Any]:
             result = response.json()
             enhanced_text = result[0].get('generated_text', '')
             
-            # Parse the AI response (simplified parsing)
+            # Try to extract enhanced title from AI response
+            enhanced_title = extract_enhanced_title(title, enhanced_text)
+            
+            # Parse the AI response and extract suggestions
             suggestions = {
-                "enhanced_title": title,  # Fallback to original
+                "enhanced_title": enhanced_title,
                 "suggested_category": "General",
                 "suggested_priority": "Medium",
                 "estimated_time": 1,
                 "task_breakdown": [],
-                "ai_insights": enhanced_text[:100] + "..." if len(enhanced_text) > 100 else enhanced_text
+                "ai_insights": enhanced_text[:150] + "..." if len(enhanced_text) > 150 else enhanced_text
             }
             
-            # Simple keyword-based category detection
+            # Enhanced keyword-based category detection
             task_text = f"{title} {description}".lower()
-            if any(word in task_text for word in ['work', 'office', 'job', 'meeting', 'project']):
+            if any(word in task_text for word in ['work', 'office', 'job', 'meeting', 'project', 'client', 'business', 'team']):
                 suggestions["suggested_category"] = "Work"
-            elif any(word in task_text for word in ['personal', 'family', 'home', 'life']):
+            elif any(word in task_text for word in ['personal', 'family', 'home', 'life', 'house', 'clean', 'organize']):
                 suggestions["suggested_category"] = "Personal"
-            elif any(word in task_text for word in ['study', 'learn', 'course', 'education']):
+            elif any(word in task_text for word in ['study', 'learn', 'course', 'education', 'read', 'research', 'skill']):
                 suggestions["suggested_category"] = "Learning"
-            elif any(word in task_text for word in ['health', 'exercise', 'fitness', 'gym']):
+            elif any(word in task_text for word in ['health', 'exercise', 'fitness', 'gym', 'workout', 'diet', 'meditation']):
                 suggestions["suggested_category"] = "Health"
+            elif any(word in task_text for word in ['plan', 'schedule', 'organize', 'prepare', 'review']):
+                suggestions["suggested_category"] = "Planning"
             
-            # Priority detection based on urgency words
-            urgency_words = ['urgent', 'asap', 'emergency', 'critical', 'deadline']
+            # Enhanced priority detection
+            urgency_words = ['urgent', 'asap', 'emergency', 'critical', 'deadline', 'today', 'now']
+            importance_words = ['important', 'priority', 'key', 'essential', 'crucial']
+            
             if any(word in task_text for word in urgency_words):
                 suggestions["suggested_priority"] = "High"
-            elif any(word in task_text for word in ['important', 'priority']):
+            elif any(word in task_text for word in importance_words):
                 suggestions["suggested_priority"] = "Medium"
             else:
                 suggestions["suggested_priority"] = "Low"
+            
+            # Estimate time based on task complexity
+            time_estimate = estimate_task_time(title, description)
+            suggestions["estimated_time"] = time_estimate
             
             return suggestions
         else:
@@ -101,36 +130,122 @@ def enhance_task_with_ai(title: str, description: str = "") -> Dict[str, Any]:
         print(f"AI API error: {e}")
         return get_fallback_suggestions(title, description)
 
+def extract_enhanced_title(original_title: str, ai_response: str) -> str:
+    """Extract enhanced title from AI response or create a better one"""
+    # If AI response is too short or unclear, create an enhanced title manually
+    if len(ai_response) < 20 or "enhanced" not in ai_response.lower():
+        return create_enhanced_title(original_title)
+    
+    # Try to extract title from AI response
+    lines = ai_response.split('\n')
+    for line in lines:
+        if 'enhanced' in line.lower() and ':' in line:
+            enhanced_part = line.split(':')[-1].strip()
+            if len(enhanced_part) > 3:
+                return enhanced_part
+    
+    # Fallback to manual enhancement
+    return create_enhanced_title(original_title)
+
+def create_enhanced_title(original_title: str) -> str:
+    """Create an enhanced title manually based on common patterns"""
+    title = original_title.strip().lower()
+    
+    # Common task enhancements
+    enhancements = {
+        'meeting': 'Schedule and prepare for team meeting',
+        'call': 'Make important phone call',
+        'email': 'Draft and send email',
+        'review': 'Review and analyze documents',
+        'plan': 'Create detailed plan',
+        'study': 'Study and review materials',
+        'exercise': 'Complete workout routine',
+        'clean': 'Clean and organize space',
+        'shop': 'Go shopping for essentials',
+        'cook': 'Prepare and cook meal',
+        'read': 'Read and take notes',
+        'write': 'Write and edit content',
+        'research': 'Research and gather information',
+        'organize': 'Organize and sort items',
+        'prepare': 'Prepare and set up',
+        'check': 'Check and verify information',
+        'update': 'Update and maintain records',
+        'create': 'Create and develop content',
+        'design': 'Design and create layout',
+        'build': 'Build and construct project'
+    }
+    
+    # Find matching enhancement
+    for key, enhancement in enhancements.items():
+        if key in title:
+            return enhancement
+    
+    # If no specific match, make it more actionable
+    if len(title) < 10:
+        return f"Complete {title} task"
+    elif not any(word in title for word in ['complete', 'finish', 'do', 'make', 'create', 'prepare']):
+        return f"Complete {title}"
+    else:
+        return original_title.title()
+
+def estimate_task_time(title: str, description: str = "") -> int:
+    """Estimate task completion time in hours"""
+    task_text = f"{title} {description}".lower()
+    
+    # Time estimation based on keywords and complexity
+    if any(word in task_text for word in ['quick', 'simple', 'small', 'brief']):
+        return 1
+    elif any(word in task_text for word in ['meeting', 'call', 'email', 'review']):
+        return 1
+    elif any(word in task_text for word in ['project', 'plan', 'organize', 'prepare']):
+        return 2
+    elif any(word in task_text for word in ['study', 'research', 'analysis', 'report']):
+        return 3
+    elif any(word in task_text for word in ['complex', 'major', 'large', 'extensive']):
+        return 4
+    else:
+        return 1
+
 def get_fallback_suggestions(title: str, description: str) -> Dict[str, Any]:
     """Fallback suggestions when AI API is unavailable"""
     task_text = f"{title} {description}".lower()
     
-    # Category detection
+    # Enhanced category detection
     category = "General"
-    if any(word in task_text for word in ['work', 'office', 'job', 'meeting', 'project']):
+    if any(word in task_text for word in ['work', 'office', 'job', 'meeting', 'project', 'client', 'business', 'team']):
         category = "Work"
-    elif any(word in task_text for word in ['personal', 'family', 'home', 'life']):
+    elif any(word in task_text for word in ['personal', 'family', 'home', 'life', 'house', 'clean', 'organize']):
         category = "Personal"
-    elif any(word in task_text for word in ['study', 'learn', 'course', 'education']):
+    elif any(word in task_text for word in ['study', 'learn', 'course', 'education', 'read', 'research', 'skill']):
         category = "Learning"
-    elif any(word in task_text for word in ['health', 'exercise', 'fitness', 'gym']):
+    elif any(word in task_text for word in ['health', 'exercise', 'fitness', 'gym', 'workout', 'diet', 'meditation']):
         category = "Health"
+    elif any(word in task_text for word in ['plan', 'schedule', 'organize', 'prepare', 'review']):
+        category = "Planning"
     
-    # Priority detection
+    # Enhanced priority detection
     priority = "Medium"
-    urgency_words = ['urgent', 'asap', 'emergency', 'critical', 'deadline']
+    urgency_words = ['urgent', 'asap', 'emergency', 'critical', 'deadline', 'today', 'now']
+    importance_words = ['important', 'priority', 'key', 'essential', 'crucial']
+    
     if any(word in task_text for word in urgency_words):
         priority = "High"
-    elif any(word in task_text for word in ['important', 'priority']):
+    elif any(word in task_text for word in importance_words):
         priority = "Medium"
     else:
         priority = "Low"
     
+    # Create enhanced title
+    enhanced_title = create_enhanced_title(title)
+    
+    # Estimate time
+    time_estimate = estimate_task_time(title, description)
+    
     return {
-        "enhanced_title": title,
+        "enhanced_title": enhanced_title,
         "suggested_category": category,
         "suggested_priority": priority,
-        "estimated_time": 1,
+        "estimated_time": time_estimate,
         "task_breakdown": [],
         "ai_insights": "AI suggestions temporarily unavailable. Using smart defaults."
     }
