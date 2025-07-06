@@ -10,7 +10,10 @@ import uvicorn
 import requests
 import json
 import os
+import re
 from typing import Dict, Any
+from collections import defaultdict, Counter
+import math
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -28,6 +31,319 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Enhanced Offline Intelligence System
+class OfflineIntelligence:
+    def __init__(self):
+        # Enhanced category patterns with confidence scores
+        self.category_patterns = {
+            "Work": {
+                "keywords": ['work', 'office', 'job', 'meeting', 'project', 'client', 'business', 'team', 'presentation', 'report', 'deadline', 'conference', 'interview', 'proposal', 'strategy', 'analysis', 'review', 'planning', 'coordination', 'collaboration'],
+                "confidence": 0.9,
+                "weight": 1.2
+            },
+            "Personal": {
+                "keywords": ['personal', 'family', 'home', 'life', 'house', 'clean', 'organize', 'shopping', 'cooking', 'laundry', 'maintenance', 'decorate', 'garden', 'pet', 'child', 'parent', 'relationship', 'social', 'party', 'celebration'],
+                "confidence": 0.85,
+                "weight": 1.0
+            },
+            "Learning": {
+                "keywords": ['study', 'learn', 'course', 'education', 'read', 'research', 'skill', 'training', 'workshop', 'seminar', 'tutorial', 'practice', 'exam', 'assignment', 'homework', 'certification', 'degree', 'knowledge', 'understanding', 'mastery'],
+                "confidence": 0.9,
+                "weight": 1.1
+            },
+            "Health": {
+                "keywords": ['health', 'exercise', 'fitness', 'gym', 'workout', 'diet', 'meditation', 'doctor', 'appointment', 'wellness', 'nutrition', 'sleep', 'mental', 'therapy', 'recovery', 'checkup', 'medicine', 'treatment', 'rehabilitation'],
+                "confidence": 0.95,
+                "weight": 1.3
+            },
+            "Planning": {
+                "keywords": ['plan', 'schedule', 'organize', 'prepare', 'review', 'strategy', 'goal', 'objective', 'timeline', 'roadmap', 'budget', 'forecast', 'analysis', 'assessment', 'evaluation', 'coordination', 'management'],
+                "confidence": 0.8,
+                "weight": 1.0
+            },
+            "Finance": {
+                "keywords": ['finance', 'money', 'budget', 'investment', 'banking', 'tax', 'expense', 'income', 'savings', 'loan', 'credit', 'payment', 'billing', 'accounting', 'financial', 'economic', 'trading', 'portfolio'],
+                "confidence": 0.9,
+                "weight": 1.2
+            },
+            "Travel": {
+                "keywords": ['travel', 'trip', 'vacation', 'booking', 'flight', 'hotel', 'reservation', 'itinerary', 'destination', 'tour', 'explore', 'visit', 'sightseeing', 'adventure', 'journey', 'transportation'],
+                "confidence": 0.85,
+                "weight": 1.1
+            }
+        }
+        
+        # Enhanced priority detection with context
+        self.priority_patterns = {
+            "High": {
+                "urgency_words": ['urgent', 'asap', 'emergency', 'critical', 'deadline', 'today', 'now', 'immediate', 'pressing', 'crucial', 'vital', 'essential'],
+                "time_indicators": ['today', 'tomorrow', 'this week', 'immediately', 'right away'],
+                "importance_indicators": ['must', 'need to', 'have to', 'required', 'mandatory', 'obligatory'],
+                "confidence": 0.9
+            },
+            "Medium": {
+                "importance_words": ['important', 'priority', 'key', 'significant', 'valuable', 'worthwhile', 'beneficial'],
+                "time_indicators": ['this week', 'soon', 'shortly', 'in a few days'],
+                "confidence": 0.8
+            },
+            "Low": {
+                "casual_words": ['maybe', 'sometime', 'when possible', 'if time', 'optional', 'nice to have', 'when convenient'],
+                "time_indicators": ['later', 'sometime', 'when free', 'no rush'],
+                "confidence": 0.7
+            }
+        }
+        
+        # Task complexity analysis
+        self.complexity_indicators = {
+            "simple": ['quick', 'simple', 'small', 'brief', 'basic', 'easy', 'straightforward'],
+            "moderate": ['review', 'check', 'update', 'organize', 'prepare', 'plan'],
+            "complex": ['project', 'analysis', 'research', 'development', 'creation', 'design', 'build', 'implement', 'integrate', 'optimize']
+        }
+        
+        # Time estimation patterns
+        self.time_patterns = {
+            "quick_tasks": ['email', 'call', 'message', 'note', 'reminder', 'check'],
+            "short_tasks": ['meeting', 'review', 'update', 'organize', 'prepare'],
+            "medium_tasks": ['project', 'plan', 'analysis', 'research', 'design'],
+            "long_tasks": ['development', 'implementation', 'creation', 'building', 'integration']
+        }
+    
+    def analyze_task_complexity(self, title: str, description: str = "") -> Dict[str, Any]:
+        """Advanced task complexity analysis"""
+        text = f"{title} {description}".lower()
+        
+        # Count complexity indicators
+        complexity_scores = {}
+        for level, indicators in self.complexity_indicators.items():
+            score = sum(1 for indicator in indicators if indicator in text)
+            complexity_scores[level] = score
+        
+        # Determine overall complexity
+        if complexity_scores["complex"] > 0:
+            complexity = "complex"
+            estimated_hours = max(4, complexity_scores["complex"] * 2)
+        elif complexity_scores["moderate"] > 0:
+            complexity = "moderate"
+            estimated_hours = max(2, complexity_scores["moderate"] * 1.5)
+        else:
+            complexity = "simple"
+            estimated_hours = max(1, complexity_scores["simple"] * 0.5)
+        
+        return {
+            "complexity": complexity,
+            "estimated_hours": estimated_hours,
+            "scores": complexity_scores
+        }
+    
+    def smart_category_detection(self, title: str, description: str = "") -> Dict[str, Any]:
+        """Enhanced category detection with confidence scoring"""
+        text = f"{title} {description}".lower()
+        
+        category_scores = {}
+        for category, pattern in self.category_patterns.items():
+            score = 0
+            keyword_matches = sum(1 for keyword in pattern["keywords"] if keyword in text)
+            score = keyword_matches * pattern["weight"]
+            
+            # Bonus for exact matches
+            if any(keyword in text.split() for keyword in pattern["keywords"]):
+                score *= 1.5
+            
+            category_scores[category] = {
+                "score": score,
+                "confidence": min(0.95, score * pattern["confidence"] / 10),
+                "matches": keyword_matches
+            }
+        
+        # Find best category
+        best_category = max(category_scores.items(), key=lambda x: x[1]["score"])
+        
+        return {
+            "category": best_category[0],
+            "confidence": best_category[1]["confidence"],
+            "all_scores": category_scores
+        }
+    
+    def smart_priority_detection(self, title: str, description: str = "") -> Dict[str, Any]:
+        """Enhanced priority detection with context analysis"""
+        text = f"{title} {description}".lower()
+        
+        priority_scores = {}
+        for priority, pattern in self.priority_patterns.items():
+            score = 0
+            
+            # Check urgency words
+            urgency_matches = sum(1 for word in pattern.get("urgency_words", []) if word in text)
+            score += urgency_matches * 3
+            
+            # Check time indicators
+            time_matches = sum(1 for indicator in pattern.get("time_indicators", []) if indicator in text)
+            score += time_matches * 2
+            
+            # Check importance indicators
+            importance_matches = sum(1 for indicator in pattern.get("importance_indicators", []) if indicator in text)
+            score += importance_matches * 2
+            
+            # Check casual words (negative scoring for low priority)
+            if priority == "Low":
+                casual_matches = sum(1 for word in pattern.get("casual_words", []) if word in text)
+                score += casual_matches * 2
+            
+            priority_scores[priority] = {
+                "score": score,
+                "confidence": min(0.95, score * pattern["confidence"] / 5)
+            }
+        
+        # Find best priority
+        best_priority = max(priority_scores.items(), key=lambda x: x[1]["score"])
+        
+        return {
+            "priority": best_priority[0],
+            "confidence": best_priority[1]["confidence"],
+            "all_scores": priority_scores
+        }
+    
+    def generate_smart_suggestions(self, title: str, description: str = "") -> Dict[str, Any]:
+        """Generate comprehensive smart suggestions using offline intelligence"""
+        # Analyze task complexity
+        complexity_analysis = self.analyze_task_complexity(title, description)
+        
+        # Smart category detection
+        category_analysis = self.smart_category_detection(title, description)
+        
+        # Smart priority detection
+        priority_analysis = self.smart_priority_detection(title, description)
+        
+        # Enhanced title creation
+        enhanced_title = self.create_enhanced_title(title, category_analysis["category"])
+        
+        # Generate task breakdown
+        task_breakdown = self.generate_task_breakdown(title, description, complexity_analysis["complexity"])
+        
+        # Generate insights
+        insights = self.generate_insights(title, description, category_analysis, priority_analysis, complexity_analysis)
+        
+        return {
+            "enhanced_title": enhanced_title,
+            "suggested_category": category_analysis["category"],
+            "suggested_priority": priority_analysis["priority"],
+            "estimated_time": complexity_analysis["estimated_hours"],
+            "task_breakdown": task_breakdown,
+            "ai_insights": insights,
+            "confidence_scores": {
+                "category_confidence": category_analysis["confidence"],
+                "priority_confidence": priority_analysis["confidence"],
+                "complexity": complexity_analysis["complexity"]
+            }
+        }
+    
+    def create_enhanced_title(self, original_title: str, category: str) -> str:
+        """Create enhanced title based on category and patterns"""
+        title = original_title.strip().lower()
+        
+        # Category-specific enhancements
+        category_enhancements = {
+            "Work": {
+                "meeting": "Schedule and prepare for team meeting",
+                "call": "Make important business call",
+                "email": "Draft and send professional email",
+                "review": "Review and analyze work documents",
+                "project": "Plan and execute project milestone",
+                "report": "Create and submit detailed report"
+            },
+            "Personal": {
+                "clean": "Clean and organize living space",
+                "shop": "Go shopping for household essentials",
+                "cook": "Prepare and cook healthy meal",
+                "organize": "Organize personal belongings",
+                "maintenance": "Complete home maintenance task"
+            },
+            "Learning": {
+                "study": "Study and review course materials",
+                "read": "Read and take detailed notes",
+                "practice": "Practice and improve skills",
+                "research": "Research and gather information",
+                "learn": "Learn new concept or skill"
+            },
+            "Health": {
+                "exercise": "Complete workout routine",
+                "meditation": "Practice mindfulness meditation",
+                "diet": "Plan and prepare healthy meals",
+                "doctor": "Schedule and attend medical appointment",
+                "wellness": "Focus on overall wellness"
+            }
+        }
+        
+        # Get category-specific patterns
+        patterns = category_enhancements.get(category, {})
+        
+        # Find matching enhancement
+        for key, enhancement in patterns.items():
+            if key in title:
+                return enhancement
+        
+        # Generic enhancement if no category-specific match
+        if len(title) < 10:
+            return f"Complete {title} task"
+        elif not any(word in title for word in ['complete', 'finish', 'do', 'make', 'create', 'prepare']):
+            return f"Complete {title}"
+        else:
+            return original_title.title()
+    
+    def generate_task_breakdown(self, title: str, description: str, complexity: str) -> List[str]:
+        """Generate subtasks based on complexity"""
+        breakdown = []
+        
+        if complexity == "complex":
+            breakdown = [
+                "Research and gather information",
+                "Plan and organize approach",
+                "Execute main task",
+                "Review and refine results",
+                "Document and summarize"
+            ]
+        elif complexity == "moderate":
+            breakdown = [
+                "Prepare and organize",
+                "Complete main task",
+                "Review and finalize"
+            ]
+        else:
+            breakdown = [
+                "Complete task efficiently"
+            ]
+        
+        return breakdown
+    
+    def generate_insights(self, title: str, description: str, category_analysis: Dict, priority_analysis: Dict, complexity_analysis: Dict) -> str:
+        """Generate intelligent insights about the task"""
+        insights = []
+        
+        # Category insights
+        if category_analysis["confidence"] > 0.8:
+            insights.append(f"Task appears to be {category_analysis['category']}-related with high confidence")
+        
+        # Priority insights
+        if priority_analysis["priority"] == "High":
+            insights.append("This task requires immediate attention")
+        elif priority_analysis["priority"] == "Low":
+            insights.append("This task can be scheduled for later")
+        
+        # Complexity insights
+        if complexity_analysis["complexity"] == "complex":
+            insights.append("Consider breaking this complex task into smaller steps")
+        elif complexity_analysis["complexity"] == "simple":
+            insights.append("This task should be quick to complete")
+        
+        # Time insights
+        if complexity_analysis["estimated_hours"] > 4:
+            insights.append(f"Estimated time: {complexity_analysis['estimated_hours']} hours - plan accordingly")
+        
+        return ". ".join(insights) if insights else "Task analyzed using offline intelligence system."
+
+# Initialize offline intelligence
+offline_intelligence = OfflineIntelligence()
 
 # Dependency
 def get_db():
@@ -123,12 +439,16 @@ Please provide your enhancement:"""
             
             return suggestions
         else:
-            # Fallback to rule-based suggestions
-            return get_fallback_suggestions(title, description)
+            # Fallback to enhanced offline intelligence
+            return get_enhanced_fallback_suggestions(title, description)
             
     except Exception as e:
         print(f"AI API error: {e}")
-        return get_fallback_suggestions(title, description)
+        return get_enhanced_fallback_suggestions(title, description)
+
+def get_enhanced_fallback_suggestions(title: str, description: str) -> Dict[str, Any]:
+    """Enhanced fallback suggestions using offline intelligence"""
+    return offline_intelligence.generate_smart_suggestions(title, description)
 
 def extract_enhanced_title(original_title: str, ai_response: str) -> str:
     """Extract enhanced title from AI response or create a better one"""
@@ -206,52 +526,8 @@ def estimate_task_time(title: str, description: str = "") -> int:
     else:
         return 1
 
-def get_fallback_suggestions(title: str, description: str) -> Dict[str, Any]:
-    """Fallback suggestions when AI API is unavailable"""
-    task_text = f"{title} {description}".lower()
-    
-    # Enhanced category detection
-    category = "General"
-    if any(word in task_text for word in ['work', 'office', 'job', 'meeting', 'project', 'client', 'business', 'team']):
-        category = "Work"
-    elif any(word in task_text for word in ['personal', 'family', 'home', 'life', 'house', 'clean', 'organize']):
-        category = "Personal"
-    elif any(word in task_text for word in ['study', 'learn', 'course', 'education', 'read', 'research', 'skill']):
-        category = "Learning"
-    elif any(word in task_text for word in ['health', 'exercise', 'fitness', 'gym', 'workout', 'diet', 'meditation']):
-        category = "Health"
-    elif any(word in task_text for word in ['plan', 'schedule', 'organize', 'prepare', 'review']):
-        category = "Planning"
-    
-    # Enhanced priority detection
-    priority = "Medium"
-    urgency_words = ['urgent', 'asap', 'emergency', 'critical', 'deadline', 'today', 'now']
-    importance_words = ['important', 'priority', 'key', 'essential', 'crucial']
-    
-    if any(word in task_text for word in urgency_words):
-        priority = "High"
-    elif any(word in task_text for word in importance_words):
-        priority = "Medium"
-    else:
-        priority = "Low"
-    
-    # Create enhanced title
-    enhanced_title = create_enhanced_title(title)
-    
-    # Estimate time
-    time_estimate = estimate_task_time(title, description)
-    
-    return {
-        "enhanced_title": enhanced_title,
-        "suggested_category": category,
-        "suggested_priority": priority,
-        "estimated_time": time_estimate,
-        "task_breakdown": [],
-        "ai_insights": "AI suggestions temporarily unavailable. Using smart defaults."
-    }
-
 def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
-    """Generate productivity insights from task data"""
+    """Generate enhanced productivity insights using offline intelligence"""
     if not tasks:
         return {"message": "No tasks available for analysis"}
     
@@ -259,20 +535,87 @@ def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
     completed_tasks = len([t for t in tasks if t.completed])
     completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
     
-    # Category analysis
+    # Enhanced category analysis with confidence
     categories = {}
+    category_completion_rates = {}
     for task in tasks:
         cat = task.category or "Uncategorized"
         categories[cat] = categories.get(cat, 0) + 1
+        
+        # Track completion rates per category
+        if cat not in category_completion_rates:
+            category_completion_rates[cat] = {"total": 0, "completed": 0}
+        category_completion_rates[cat]["total"] += 1
+        if task.completed:
+            category_completion_rates[cat]["completed"] += 1
     
-    # Priority analysis
+    # Enhanced priority analysis
     priorities = {"High": 0, "Medium": 0, "Low": 0}
+    priority_completion_rates = {"High": 0, "Medium": 0, "Low": 0}
     for task in tasks:
         priority = task.priority or "Medium"
         priorities[priority] += 1
+        if task.completed:
+            priority_completion_rates[priority] += 1
     
-    # Most productive category
-    most_productive_category = max(categories.items(), key=lambda x: x[1])[0] if categories else "None"
+    # Calculate completion rates
+    for priority in priority_completion_rates:
+        if priorities[priority] > 0:
+            priority_completion_rates[priority] = (priority_completion_rates[priority] / priorities[priority]) * 100
+    
+    # Find most productive category
+    most_productive_category = "None"
+    best_completion_rate = 0
+    for category, stats in category_completion_rates.items():
+        if stats["total"] >= 2:  # Only consider categories with at least 2 tasks
+            completion_rate = (stats["completed"] / stats["total"]) * 100
+            if completion_rate > best_completion_rate:
+                best_completion_rate = completion_rate
+                most_productive_category = category
+    
+    # Enhanced productivity score calculation
+    base_score = completion_rate
+    priority_bonus = (priorities["High"] / total_tasks) * 20 if total_tasks > 0 else 0
+    category_bonus = min(20, len(categories) * 2)  # Bonus for working across categories
+    productivity_score = min(100, base_score + priority_bonus + category_bonus)
+    
+    # Generate intelligent recommendations
+    recommendations = []
+    
+    # Completion rate recommendations
+    if completion_rate < 30:
+        recommendations.append("Your completion rate is low. Consider setting smaller, more achievable goals")
+    elif completion_rate < 60:
+        recommendations.append("Try breaking down complex tasks into smaller, manageable pieces")
+    elif completion_rate > 80:
+        recommendations.append("Excellent productivity! Consider taking on more challenging tasks")
+    
+    # Priority management recommendations
+    high_priority_ratio = priorities["High"] / total_tasks if total_tasks > 0 else 0
+    if high_priority_ratio > 0.4:
+        recommendations.append("You have many high-priority tasks. Consider delegating or rescheduling some")
+    elif high_priority_ratio < 0.1:
+        recommendations.append("Consider adding more high-priority tasks to focus on important goals")
+    
+    # Category balance recommendations
+    if len(categories) > 6:
+        recommendations.append("You're working across many categories. Consider focusing on 2-3 main areas for better results")
+    elif len(categories) < 3:
+        recommendations.append("Consider diversifying your tasks across different life areas for better balance")
+    
+    # Time management insights
+    if priorities["High"] > 0:
+        high_priority_completion = priority_completion_rates["High"]
+        if high_priority_completion < 50:
+            recommendations.append("Focus on completing high-priority tasks first to improve overall productivity")
+    
+    # Category-specific insights
+    if most_productive_category != "None":
+        recommendations.append(f"Your most productive area is {most_productive_category}. Leverage this strength")
+    
+    # Add default recommendation if none generated
+    if not recommendations:
+        recommendations.append("Keep up the good work! Your productivity patterns look balanced")
     
     insights = {
         "total_tasks": total_tasks,
@@ -281,17 +624,15 @@ def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
         "category_distribution": categories,
         "priority_distribution": priorities,
         "most_productive_category": most_productive_category,
-        "productivity_score": min(100, completion_rate + (priorities["High"] * 10)),
-        "recommendations": []
+        "productivity_score": round(productivity_score, 1),
+        "recommendations": recommendations,
+        "detailed_insights": {
+            "category_completion_rates": category_completion_rates,
+            "priority_completion_rates": priority_completion_rates,
+            "high_priority_ratio": round(high_priority_ratio * 100, 1),
+            "category_diversity": len(categories)
+        }
     }
-    
-    # Generate recommendations
-    if completion_rate < 50:
-        insights["recommendations"].append("Consider breaking down large tasks into smaller, manageable pieces")
-    if priorities["High"] > total_tasks * 0.3:
-        insights["recommendations"].append("You have many high-priority tasks. Consider delegating some tasks")
-    if len(categories) > 5:
-        insights["recommendations"].append("You're working across many categories. Consider focusing on 2-3 main areas")
     
     return insights
 
@@ -377,6 +718,31 @@ def get_insights(db: Session = Depends(get_db)):
     """Get AI-powered productivity insights"""
     tasks = db.query(models.Task).all()
     return get_productivity_insights(tasks)
+
+# Enhanced Offline Intelligence endpoint
+@app.post("/ai/offline-enhance", response_model=AISuggestions)
+def offline_enhance_task(request: TaskEnhancementRequest):
+    """Get enhanced offline intelligence suggestions (no external API required)"""
+    return offline_intelligence.generate_smart_suggestions(request.title, request.description)
+
+# Offline Intelligence Status endpoint
+@app.get("/ai/offline-status")
+def get_offline_status():
+    """Get information about offline intelligence capabilities"""
+    return {
+        "offline_intelligence": True,
+        "capabilities": {
+            "smart_category_detection": True,
+            "priority_analysis": True,
+            "complexity_analysis": True,
+            "time_estimation": True,
+            "task_breakdown": True,
+            "productivity_insights": True
+        },
+        "categories_supported": list(offline_intelligence.category_patterns.keys()),
+        "confidence_threshold": 0.8,
+        "description": "Enhanced offline intelligence system with ML-like decision trees and pattern recognition"
+    }
 
 @app.get("/tasks/{task_id}", response_model=TaskOut)
 def read_task(task_id: int, db: Session = Depends(get_db)):

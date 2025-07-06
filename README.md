@@ -47,8 +47,10 @@ python main.py
 - `DELETE /tasks/{task_id}` – Delete a task
 
 ### AI-Powered Features
-- `POST /ai/enhance-task` – Get AI suggestions for task enhancement
+- `POST /ai/enhance-task` – Get AI suggestions for task enhancement (with fallback to offline intelligence)
 - `GET /ai/productivity-insights` – Get productivity analytics and recommendations
+- `POST /ai/offline-enhance` – Get enhanced offline intelligence suggestions (no external API required)
+- `GET /ai/offline-status` – Get information about offline intelligence capabilities
 
 ## 🤖 AI Integration Features
 
@@ -66,10 +68,15 @@ python main.py
 - **Smart Recommendations:** Provides personalized productivity tips
 - **Productivity Score:** Calculates overall productivity rating
 
-### Fallback System
-- **Offline Intelligence:** Works even when AI APIs are unavailable
-- **Rule-based Suggestions:** Uses keyword analysis for smart defaults
-- **Reliable Performance:** Ensures consistent functionality
+### Enhanced Offline Intelligence System
+- **Advanced Pattern Recognition:** ML-like decision trees for smart categorization
+- **Confidence Scoring:** Intelligent confidence levels for all suggestions
+- **Complexity Analysis:** Sophisticated task complexity assessment
+- **Smart Time Estimation:** Advanced time prediction based on task patterns
+- **Context-Aware Priority Detection:** Multi-factor priority analysis
+- **Intelligent Task Breakdown:** Automatic subtask generation
+- **Enhanced Productivity Insights:** Deep analytics with actionable recommendations
+- **Zero External Dependencies:** Works completely offline with no API calls required
 
 ## 📂 Repository
 
