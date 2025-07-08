@@ -535,19 +535,21 @@ def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
     completed_tasks = len([t for t in tasks if t.completed])
     completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
     
-    # Enhanced category analysis with confidence
+    # Enhanced category analysis with confidence (case-insensitive)
     categories = {}
     category_completion_rates = {}
     for task in tasks:
-        cat = task.category or "Uncategorized"
+        cat = (task.category or "Uncategorized").strip().lower()
         categories[cat] = categories.get(cat, 0) + 1
-        
         # Track completion rates per category
         if cat not in category_completion_rates:
             category_completion_rates[cat] = {"total": 0, "completed": 0}
         category_completion_rates[cat]["total"] += 1
         if task.completed:
             category_completion_rates[cat]["completed"] += 1
+    # Display with first letter capitalized
+    categories_display = {cat.capitalize(): count for cat, count in categories.items()}
+    category_completion_rates_display = {cat.capitalize(): stats for cat, stats in category_completion_rates.items()}
     
     # Enhanced priority analysis
     priorities = {"High": 0, "Medium": 0, "Low": 0}
@@ -568,10 +570,10 @@ def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
     best_completion_rate = 0
     for category, stats in category_completion_rates.items():
         if stats["total"] >= 2:  # Only consider categories with at least 2 tasks
-            completion_rate = (stats["completed"] / stats["total"]) * 100
-            if completion_rate > best_completion_rate:
-                best_completion_rate = completion_rate
-                most_productive_category = category
+            cat_completion_rate = (stats["completed"] / stats["total"]) * 100
+            if cat_completion_rate > best_completion_rate:
+                best_completion_rate = cat_completion_rate
+                most_productive_category = category.capitalize()
     
     # Enhanced productivity score calculation
     base_score = completion_rate
@@ -621,13 +623,13 @@ def get_productivity_insights(tasks: List[models.Task]) -> Dict[str, Any]:
         "total_tasks": total_tasks,
         "completed_tasks": completed_tasks,
         "completion_rate": round(completion_rate, 1),
-        "category_distribution": categories,
+        "category_distribution": categories_display,
         "priority_distribution": priorities,
         "most_productive_category": most_productive_category,
         "productivity_score": round(productivity_score, 1),
         "recommendations": recommendations,
         "detailed_insights": {
-            "category_completion_rates": category_completion_rates,
+            "category_completion_rates": category_completion_rates_display,
             "priority_completion_rates": priority_completion_rates,
             "high_priority_ratio": round(high_priority_ratio * 100, 1),
             "category_diversity": len(categories)
@@ -684,7 +686,10 @@ class TaskEnhancementRequest(BaseModel):
 # CRUD Endpoints
 @app.post("/tasks/", response_model=TaskOut)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
-    db_task = models.Task(**task.model_dump())
+    task_data = task.model_dump()
+    if task_data.get("category"):
+        task_data["category"] = task_data["category"].strip().lower()
+    db_task = models.Task(**task_data)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -756,7 +761,10 @@ def update_task(task_id: int, task: TaskUpdate, db: Session = Depends(get_db)):
     db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    for key, value in task.model_dump(exclude_unset=True).items():
+    update_data = task.model_dump(exclude_unset=True)
+    if update_data.get("category"):
+        update_data["category"] = update_data["category"].strip().lower()
+    for key, value in update_data.items():
         setattr(db_task, key, value)
     db.commit()
     db.refresh(db_task)
